@@ -1,0 +1,15 @@
+figure.figsize : 6, 4
+text.usetex : True
+
+font.size : 18
+font.family : serif
+font.serif  : cm
+
+axes.titlesize : 18
+axes.labelsize : 14
+xtick.labelsize : 14
+ytick.labelsize : 14
+
+figure.dpi : 120
+
+savefig.bbox : tight
