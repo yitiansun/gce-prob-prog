@@ -1,20 +1,14 @@
-###############################################################################
-# create_mask.py
-###############################################################################
-#
-# Creates a Boolean mask where pixels labelled as true are masked and those
-# labelled false are unmasked.
-#
-# Note throughout we adjust from b to theta = 90-b, as this is what healpy
-# uses.
-#
-# Note also all inputs are in degrees.
-#
-# NB: this module fundamentally assumes that the analysis is being performed
-# on a spherical region pixelised using HEALPix. If this is not the case, the
-# mask must be computed differently.
-#
-###############################################################################
+"""Creates a Boolean mask where pixels labelled as true are masked and those
+labelled false are unmasked.
+
+Note throughout we adjust from b to theta = 90-b, as this is what healpy uses.
+
+Note also all inputs are in degrees.
+
+NB: this module fundamentally assumes that the analysis is being performed on a
+spherical region pixelised using HEALPix. If this is not the case, the mask must
+be computed differently.
+"""
 
 import numpy as np
 import healpy as hp

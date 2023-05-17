@@ -3,6 +3,7 @@ from reproject import reproject_from_healpix
 from astropy.wcs import WCS
 from astropy.coordinates import ICRS, Galactic
 
+
 def make_wcs(center, size, pixelsize, frame="Galactic", projection="CAR"):
     """
     Create a WCS (World Coordinate System) object with the given parameters.
