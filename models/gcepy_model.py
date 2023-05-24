@@ -55,8 +55,8 @@ class EbinPoissonModelGCEPy (EbinPoissonModel):
     def model_at_bin(self, data, ie=0):
         
         #===== random variables =====
-        log10S_pib = numpyro.sample('log10S_pib', dist.Uniform(-2, 10))
-        log10S_ics = numpyro.sample('log10S_ics', dist.Uniform(-2, 10))
+        log10S_pib = numpyro.sample('log10S_pib', dist.Uniform(-2, 3))
+        log10S_ics = numpyro.sample('log10S_ics', dist.Uniform(-2, 3))
         log10S_bub = numpyro.sample('log10S_bub', dist.Uniform(-2, 2))
         log10S_iso = numpyro.sample('log10S_iso', dist.Uniform(-2, 2))
         log10S_gce = numpyro.sample('log10S_gce', dist.Uniform(-2, 2))

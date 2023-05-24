@@ -1,5 +1,7 @@
 #========== This project ==========
 **/.DS_Store
+.tmp.driveupload/
+output/posteriors/compare_gcepy/
 #==================================
 
 # Byte-compiled / optimized / DLL files
