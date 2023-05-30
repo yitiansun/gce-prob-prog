@@ -1,4 +1,6 @@
-"""gcepy model"""
+"""Models from gcepy
+https://github.com/samueldmcdermott/gcepy/tree/main/gcepy
+"""
 
 import numpy as np
 import jax
@@ -19,63 +21,53 @@ class EbinPoissonModelGCEPy (EbinPoissonModel):
         
         ddir = "../data/external/gcepy/inputs"
         postfix = 'front_only_14_Ebin_20x20window_normal'
+        self.n_ebin = 14
         
         #========== templates ==========
         self.temps = {
-            'pib_7p' : np.load(f"{ddir}/templates_lowdim/bremss_model_7p_{postfix}.npy") \
-                     + np.load(f"{ddir}/templates_lowdim/pion0_model_7p_{postfix}.npy"),
-            'pib_8t' : np.load(f"{ddir}/templates_lowdim/bremss_model_8t_{postfix}.npy") \
-                     + np.load(f"{ddir}/templates_lowdim/pion0_model_8t_{postfix}.npy"),
-            'ics_7p' : np.load(f"{ddir}/templates_lowdim/ics_model_7p_{postfix}.npy"),
-            'ics_8t' : np.load(f"{ddir}/templates_lowdim/ics_model_8t_{postfix}.npy"),
-            'iso'    : np.load(f"{ddir}/utils/isotropic_{postfix}.npy"),
-            'bub'    : np.load(f"{ddir}/utils/bubble_{postfix}.npy"),
-            'gce_bb' : np.load(f"{ddir}/excesses/bb_{postfix}.npy"),
-            'gce_bbp': np.load(f"{ddir}/excesses/bbp_{postfix}.npy"),
-            'gce_dm' : np.load(f"{ddir}/excesses/dm_{postfix}.npy"),
-            'gce_x'  : np.load(f"{ddir}/excesses/x_{postfix}.npy"),
+            'pib_7p' : jnp.load(f"{ddir}/templates_lowdim/bremss_model_7p_{postfix}.npy") \
+                     + jnp.load(f"{ddir}/templates_lowdim/pion0_model_7p_{postfix}.npy"),
+            'pib_8t' : jnp.load(f"{ddir}/templates_lowdim/bremss_model_8t_{postfix}.npy") \
+                     + jnp.load(f"{ddir}/templates_lowdim/pion0_model_8t_{postfix}.npy"),
+            'ics_7p' : jnp.load(f"{ddir}/templates_lowdim/ics_model_7p_{postfix}.npy"),
+            'ics_8t' : jnp.load(f"{ddir}/templates_lowdim/ics_model_8t_{postfix}.npy"),
+            'iso'    : jnp.load(f"{ddir}/utils/isotropic_{postfix}.npy"),
+            'bub'    : jnp.load(f"{ddir}/utils/bubble_{postfix}.npy"),
+            'gce_bb' : jnp.load(f"{ddir}/excesses/bb_{postfix}.npy"),
+            'gce_bbp': jnp.load(f"{ddir}/excesses/bbp_{postfix}.npy"),
+            'gce_dm' : jnp.load(f"{ddir}/excesses/dm_{postfix}.npy"),
+            'gce_x'  : jnp.load(f"{ddir}/excesses/x_{postfix}.npy"),
         }
-        self.mask = np.array(np.load(f"{ddir}/utils/mask_4FGL-DR2_14_Ebin_20x20window_normal.npy"), dtype=bool)
-        self.temps_masked = {
-            k : [
-                jnp.array(t[ie][self.mask[ie]])
-                for ie in range(t.shape[0])
-            ]
-            for k, t in self.temps.items()
-        }
+        self.mask = jnp.array(jnp.load(f"{ddir}/utils/mask_4FGL-DR2_14_Ebin_20x20window_normal.npy"), dtype=bool)
+        self.temps_masked_ebin = [
+            {
+                key : temp[ie][self.mask[ie]]
+                for key, temp in self.temps.items()
+            }
+            for ie in range(self.n_ebin)
+        ]
         self.temps_masked_full = {
-            k : jnp.concatenate([
-                jnp.array(t[ie][self.mask[ie]])
-                for ie in range(t.shape[0])
+            key : jnp.concatenate([
+                temp[ie][self.mask[ie]]
+                for ie in range(self.n_ebin)
             ])
-            for k, t in self.temps.items()
+            for key, temp in self.temps.items()
         }
         
         #========== errors ==========
-        errs = jnp.load(f"{ddir}/utils/external_errors.npy")
-        self.errs = {
-            'iso' : errs[0],
-            'bub' : errs[1],
+        temp_errors = jnp.load(f"{ddir}/utils/external_errors.npy")
+        self.temp_errors = {
+            'iso' : temp_errors[0],
+            'bub' : temp_errors[1],
         }
-        # temps_masked_lens = [len(t) for t in self.temps_masked['iso']]
-        # self.errs_full = {
-        #     k : jnp.concatenate([
-        #         jnp.full((l,), e[ie])
-        #         for ie, l in enumerate(temps_masked_lens)
-        #     ])
-        #     for k, e in self.errs.items()
-        # }
         
         #========== counts ==========
-        self.counts = np.array(np.load(f"{ddir}/utils/fermi_w009_to_w670_{postfix}.npy"), dtype=np.int32)
-        self.counts_masked = [
-            jnp.array(self.counts[ie][self.mask[ie]], dtype=jnp.int32)
-            for ie in range(self.counts.shape[0])
+        self.counts = jnp.array(jnp.load(f"{ddir}/utils/fermi_w009_to_w670_{postfix}.npy"), dtype=jnp.int32)
+        self.counts_masked_ebin = [
+            self.counts[ie][self.mask[ie]]
+            for ie in range(self.n_ebin)
         ]
-        self.counts_masked_full = jnp.concatenate([
-            jnp.array(self.counts[ie][self.mask[ie]], dtype=jnp.int32)
-            for ie in range(self.counts.shape[0])
-        ])
+        self.counts_masked_full = jnp.concatenate(self.counts_masked_ebin)
         
         #========== sample expand keys ==========
         self.samples_expand_keys = {
@@ -85,100 +77,97 @@ class EbinPoissonModelGCEPy (EbinPoissonModel):
         }
         
         
-    def model_at_bin(self, data, ie=0):
+    def model(self, ebin='all', error_mode='none'):
+        """
+        Model for a single energy bin or all bins.
         
-        #===== random variables =====
-        log10S_pib = numpyro.sample('log10S_pib', dist.Uniform(-2, 3))
-        log10S_ics = numpyro.sample('log10S_ics', dist.Uniform(-2, 3))
-        log10S_bub = numpyro.sample('log10S_bub', dist.Uniform(-2, 2))
-        log10S_iso = numpyro.sample('log10S_iso', dist.Uniform(-2, 2))
-        log10S_gce = numpyro.sample('log10S_gce', dist.Uniform(-2, 2))
+        Parameters
+        ----------
+        ebin : 'all' or int
+            'all' or index of energy bin fitted.
+        error_mode : {'none', 'll', 'prior'}
+            High latitude chi-squared error mode: none, included in
+            log-likelihood, or included in the prior.
+        """
         
-        theta_pib = numpyro.sample('theta_pib', dist.Dirichlet(jnp.ones((2,)) / 2))
-        theta_ics = numpyro.sample('theta_ics', dist.Dirichlet(jnp.ones((2,)) / 2))
-        theta_gce = numpyro.sample('theta_gce', dist.Dirichlet(jnp.ones((4,)) / 4))
-        
-        #===== calculate mu =====
-        t = self.temps_masked
-        mu =  (t['pib_7p'][ie] * theta_pib[0] + t['pib_8t'][ie] * theta_pib[1]) * 10**log10S_pib
-        mu += (t['ics_7p'][ie] * theta_ics[0] + t['ics_8t'][ie] * theta_ics[1]) * 10**log10S_ics
-        mu +=  t['bub'][ie] * 10**log10S_bub
-        mu +=  t['iso'][ie] * 10**log10S_iso
-        mu += (t['gce_bb'][ie] * theta_gce[0] + t['gce_bbp'][ie] * theta_gce[1] \
-              +t['gce_dm'][ie] * theta_gce[2] + t['gce_x'][ie] * theta_gce[3]) * 10**log10S_gce
-
-        data_masked = self.counts_masked[ie]
-        
-        with numpyro.plate('data', size=len(mu), dim=-1):
-            return numpyro.factor('log_likelihood', log_like_poisson(mu, data_masked))
-        
-        
-    def model_full(self, data, include_errors=True):
-        
-        #===== random variables =====
-        log10S_pib = numpyro.sample('log10S_pib', dist.Uniform(-2, 3))
-        log10S_ics = numpyro.sample('log10S_ics', dist.Uniform(-2, 3))
-        log10S_bub = numpyro.sample('log10S_bub', dist.Uniform(-2, 2))
-        log10S_iso = numpyro.sample('log10S_iso', dist.Uniform(-2, 2))
-        log10S_gce = numpyro.sample('log10S_gce', dist.Uniform(-2, 2))
-        
-        theta_pib = numpyro.sample('theta_pib', dist.Dirichlet(jnp.ones((2,)) / 2))
-        theta_ics = numpyro.sample('theta_ics', dist.Dirichlet(jnp.ones((2,)) / 2))
-        theta_gce = numpyro.sample('theta_gce', dist.Dirichlet(jnp.ones((4,)) / 4))
-        
-        #===== calculate mu =====
-        t = self.temps_masked_full
-        S_bub = 10**log10S_bub
-        S_iso = 10**log10S_iso
-        
-        mu =  (t['pib_7p'] * theta_pib[0] + t['pib_8t'] * theta_pib[1]) * 10**log10S_pib
-        mu += (t['ics_7p'] * theta_ics[0] + t['ics_8t'] * theta_ics[1]) * 10**log10S_ics
-        mu +=  t['bub'] * S_bub
-        mu +=  t['iso'] * S_iso
-        mu += (t['gce_bb'] * theta_gce[0] + t['gce_bbp'] * theta_gce[1] \
-              +t['gce_dm'] * theta_gce[2] + t['gce_x'] * theta_gce[3]) * 10**log10S_gce
-
-        data_masked = self.counts_masked_full
-        
-        with numpyro.plate('data', size=len(mu), dim=-1):
+        #===== parameters =====
+        if error_mode == 'prior':
             
-            ll = log_like_poisson(mu, data_masked)
-            if include_errors:
+            raise NotImplementedError
+            
+            if ebin == 'all':
+                sigma_iso = jnp.sqrt(jnp.sum(self.temp_errors['iso']**2))
+                sigma_bub = jnp.sqrt(jnp.sum(self.temp_errors['bub']**2))
+            else:
+                sigma_iso = self.temp_errors['iso'][ebin]
+                sigma_bub = self.temp_errors['bub'][ebin]
+            S_iso = numpyro.sample('S_iso', dist.Normal(
+                loc=1, scale=sigma_iso, constraint=dist.constraints.positive
+            ))
+            S_bub = numpyro.sample('S_bub', dist.Normal(
+                loc=1, scale=sigma_iso, constraint=dist.constraints.positive
+            ))
+        else:
+            S_iso = numpyro.sample('S_iso', dist.LogUniform(1e-2, 1e2))
+            S_bub = numpyro.sample('S_bub', dist.LogUniform(1e-2, 1e2))
+            
+        S_pib = numpyro.sample('S_pib', dist.LogUniform(1e-2, 1e3))
+        S_ics = numpyro.sample('S_ics', dist.LogUniform(1e-2, 1e3))
+        S_gce = numpyro.sample('S_gce', dist.LogUniform(1e-2, 1e2))
+        
+        theta_pib = numpyro.sample('theta_pib', dist.Dirichlet(jnp.ones((2,)) / 2))
+        theta_ics = numpyro.sample('theta_ics', dist.Dirichlet(jnp.ones((2,)) / 2))
+        theta_gce = numpyro.sample('theta_gce', dist.Dirichlet(jnp.ones((4,)) / 4)) # gce includes 4 bulges and dm
+        
+        #===== calculate mu =====
+        if ebin == 'all':
+            temps = self.temps_masked_full
+            data  = self.counts_masked_full
+        else:
+            temps = self.temps_masked_ebin[ebin]
+            data  = self.counts_masked_ebin[ebin]
+        mu =  (temps['pib_7p'] * theta_pib[0] + temps['pib_8t'] * theta_pib[1]) * S_pib
+        mu += (temps['ics_7p'] * theta_ics[0] + temps['ics_8t'] * theta_ics[1]) * S_ics
+        mu +=  temps['bub'] * S_bub
+        mu +=  temps['iso'] * S_iso
+        mu += (temps['gce_bb'] * theta_gce[0] + temps['gce_bbp'] * theta_gce[1] \
+              +temps['gce_dm'] * theta_gce[2] + temps['gce_x'] * theta_gce[3]) * S_gce
+        
+        #===== likelihood =====
+        with numpyro.plate('data', size=mu.shape[0], dim=-1):
+            
+            ll = log_like_poisson(mu, data)
+            if error_mode == 'll':
                 npix = mu.shape[0]
-                ll += jnp.sum( ((S_bub - 1.) / self.errs['iso']) ** 2 ) / npix
-                ll += jnp.sum( ((S_bub - 1.) / self.errs['bub']) ** 2 ) / npix
-                
+                ll += jnp.sum( ((S_iso - 1.)/self.temp_errors['iso']) ** 2 ) / npix
+                ll += jnp.sum( ((S_bub - 1.)/self.temp_errors['bub']) ** 2 ) / npix
             return numpyro.factor('log_likelihood', ll)
         
-    #========== More SVI ==========
-    def fit_SVI_full(
+        
+    #==============================
+    def fit_SVI(
         self, rng_key=jax.random.PRNGKey(42),
         num_flows=5, hidden_dims=[256, 256],
         n_steps=7500, lr=5e-5, num_particles=8,
         **model_static_kwargs,
     ):
-        
         self.guide = autoguide.AutoIAFNormal(
-            self.model_full,
+            self.model,
             num_flows=num_flows,
             hidden_dims=hidden_dims,
             nonlinearity=stax.Tanh
         )
-        
         optimizer = optim.optax_to_numpyro(
             optax.chain(
                 optax.clip(1.),
-                optax.adam(lr),
+                optax.adamw(lr),
             )
         )
-        
         svi = SVI(
-            self.model_full,
-            self.guide,
-            optimizer,
+            self.model, self.guide, optimizer,
             Trace_ELBO(num_particles=num_particles),
             **model_static_kwargs,
         )
-        self.svi_results = svi.run(rng_key, n_steps, None)
+        self.svi_results = svi.run(rng_key, n_steps)
         
         return self.svi_results
