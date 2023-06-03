@@ -1,5 +1,7 @@
 # Characterizing the Galactic Center $\gamma$-ray Excess with probabilistic programming
-Energy-binned, poissonian portion of the NumPyro pipeline.
+<a target="_blank" href="https://colab.research.google.com/github/yitiansun/gce-prob-prog#usage-colaboratory">
+  <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+</a>
 
 ## Usage: Colaboratory
 

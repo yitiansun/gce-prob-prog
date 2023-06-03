@@ -2,6 +2,7 @@
 **/.DS_Store
 .tmp.driveupload/
 output/posteriors/compare_gcepy/
+data/fermi_data_573w/ebin/
 #==================================
 
 # Byte-compiled / optimized / DLL files

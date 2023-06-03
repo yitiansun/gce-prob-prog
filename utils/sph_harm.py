@@ -17,11 +17,8 @@ spherical coordinates
         :phi:   azimuthal coordinate; must be in [0, 2*pi];
 """
 
-import sys, os
-
 import numpy as np
 from scipy.special import sph_harm
-import healpy as hp
 
 
 def Ylm(l, m, theta, phi): 
