@@ -82,7 +82,7 @@ class PSFCorrection:
         self.gridsize = gridsize
 
         if self.psf_dir is None:
-            self.psf_dir = os.getcwd() + "/psf_dir/"
+            self.psf_dir = "../data/psf_dir/"
         self.make_dirs([self.psf_dir])
 
         # Convert psf from degrees to radians

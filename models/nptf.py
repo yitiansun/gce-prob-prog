@@ -1,10 +1,13 @@
-import numpyro
-import healpy as hp
+"""Non-poissonian model"""
+
 import numpy as np
-import jax.numpy as jnp
+import healpy as hp
+
 import jax
+import jax.numpy as jnp
 from jax.example_libraries import stax
 
+import numpyro
 import numpyro.distributions as dist
 from numpyro.infer import SVI, Trace_ELBO, autoguide
 from numpyro import optim
@@ -16,10 +19,10 @@ import arviz as az
 from einops import repeat
 
 from likelihoods.npll_jax import log_like_np, dnds
-from models.templates import NFWTemplate, LorimerDiskTemplate
-from models.bulge_models import BulgeTemplates
-from models.psf import KingPSF
+from templates.variable_templates import NFWTemplate, LorimerDiskTemplate
+from templates.rigid_templates import BulgeTemplates
 from utils import create_mask as cm
+from utils.psf import KingPSF
 from utils.psf_correction import PSFCorrection
 
 import logging

@@ -1,5 +1,6 @@
 """Poissonian models for healpix with energy binning."""
 
+import os
 import sys
 sys.path.append("..")
 
@@ -28,7 +29,6 @@ from utils.map_utils import to_nside
 
 from templates.rigid_templates import EbinTemplate, Template, BulgeTemplates
 from templates.variable_templates import NFWTemplate, LorimerDiskTemplate
-from templates.mask import Mask
 from likelihoods.pll_jax import log_like_poisson
 
 # Because of masking, for now we use numpy up till the final construction of
@@ -97,7 +97,12 @@ class EbinPoissonModel:
         self.disk_option = disk_option
         self.l_max = l_max
         
-        ebin_data_dir = '../data/fermi_data_573w/ebin'
+        if self.nside > 128:
+            ebin_data_dir = '../data/fermi_data_573w/ebin'
+            if not os.path.isdir(ebin_data_dir):
+                print('NSIDE > 128 requires ebin_512 dataset.')
+        else:
+            ebin_data_dir = '../data/fermi_data_573w/ebin_128'
         default_data_dir = '../data/fermi_data_573w/fermi_data_256'
         
         #========== Data ==========

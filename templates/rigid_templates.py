@@ -98,25 +98,28 @@ class BulgeTemplates:
 
         self.nside_out = nside_out
         self.nside_project = nside_project
+
         self.mask_norm = cm.make_mask_total(nside=nside_out, mask_ring=True, inner=0, outer=r_norm)
+
+        bulge_data_dir = "../data/bulge_templates/"
 
         # From https://github.com/chrisgordon1/galactic_bulge_templates
         if template_name == "macias2019":
-            self.template = fits.open("../data/bulge_templates/BoxyBulge_arxiv1901.03822_Normalized.fits")[0].data
+            self.template = fits.open(bulge_data_dir + "BoxyBulge_arxiv1901.03822_Normalized.fits")[0].data
             self.wcs = make_wcs([0, 0], [200, 200], 0.2)
         elif template_name == "coleman2019":
-            self.template = fits.open("../data/bulge_templates/Bulge_modulated_Coleman_etal_2019_Normalized.fits")[0].data
+            self.template = fits.open(bulge_data_dir + "Bulge_modulated_Coleman_etal_2019_Normalized.fits")[0].data
             self.wcs = make_wcs([0, 0], [200, 200], 0.2)
 
         # From https://github.com/samueldmcdermott/gcepy/tree/main/gcepy/inputs/excesses
         elif template_name == "mcdermott2022":
-            self.template = np.flip(np.load("../data/bulge_templates/bb_front_only_14_Ebin_20x20window_normal.npy")[0], -1)
+            self.template = np.flip(np.load(bulge_data_dir + "bb_front_only_14_Ebin_20x20window_normal.npy")[0], -1)
             self.wcs = make_wcs([0, 0], [400, 400], 0.1)
         elif template_name == "mcdermott2022_bbp":
-            self.template = np.flip(np.load("../data/bulge_templates/bbp_front_only_14_Ebin_20x20window_normal.npy")[0], -1)
+            self.template = np.flip(np.load(bulge_data_dir + "bbp_front_only_14_Ebin_20x20window_normal.npy")[0], -1)
             self.wcs = make_wcs([0, 0], [400, 400], 0.1)
         elif template_name == "mcdermott2022_x":
-            self.template = np.flip(np.load("../data/bulge_templates/x_front_only_14_Ebin_20x20window_normal.npy")[0], -1)
+            self.template = np.flip(np.load(bulge_data_dir + "x_front_only_14_Ebin_20x20window_normal.npy")[0], -1)
             self.wcs = make_wcs([0, 0], [400, 400], 0.1)
 
     def __call__(self):
