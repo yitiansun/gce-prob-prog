@@ -41,37 +41,38 @@ class Template:
         if norm_mask is not None:
             self.data /= jnp.mean(self.data[~norm_mask])
         
-    def at_bin(self, ie):
+    def at_bin(self, ie, mask=None):
         """Returns energy independent template."""
-        return self.data
+        return self.data if mask is None else self.data[~mask]
 
-    
+
 class EbinTemplate:
     """Templates with energy binning.
     
     Parameters
     ----------
     engs : ndarray, shape-(nebin,)
-        Energy abscissa
+        Energy abscissa. Required for at_eng.
     data : ndarray, shape=(nebin, ...)
     norm_mask : None or ndarray, shape=(...)
         Mask used to normalize template. Not energy dependent. Not stored.
         1 or True means masking out, 0 or False means to include in fit.
     """
     
-    def __init__(self, engs, data, norm_mask=None):
-        self.engs = engs
+    def __init__(self, data, engs=None, norm_mask=None):
         self.data = data
+        self.engs = engs
         if norm_mask is not None:
             self.data /= jnp.mean(self.data[:, ~norm_mask], axis=1)[:, None]
                 
-    def at_bin(self, ie):
+    def at_bin(self, ie, mask=None):
         """Returns template at ith E bin."""
-        return self.data[ie]
+        return self.data[ie] if mask is None else self.data[ie][~mask]
     
-    def at_eng(self, eng):
+    def at_eng(self, eng, mask=None):
         """Returns interpolated template at energy."""
-        return interp1d(eng, self.engs, self.data)
+        interp_temp = interp1d(eng, self.engs, self.data)
+        return interp_temp if mask is None else interp_temp[~mask]
     
 
 #========== Bulge templates ==========

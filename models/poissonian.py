@@ -28,6 +28,7 @@ from utils.map_utils import to_nside
 
 from templates.rigid_templates import EbinTemplate, Template, BulgeTemplates
 from templates.variable_templates import NFWTemplate, LorimerDiskTemplate
+from templates.mask import Mask
 from likelihoods.pll_jax import log_like_poisson
 
 # Because of masking, for now we use numpy up till the final construction of
@@ -69,7 +70,7 @@ class EbinPoissonModel:
     
     def __init__(
         self,
-        nside = 256,
+        nside = 128,
         ps_cat = '3fgl',
         data_class = 'fwhm000-0512-bestpsf-nopsc',
         temp_class = 'ultracleanveto-bestpsf',
@@ -210,6 +211,16 @@ class EbinPoissonModel:
         
         
     #========== Model ==========
+    def config_model(self, ebin=10):
+        
+        if ebin == 'all':
+            raise NotImplementedError
+        else:
+            ie = int(ebin)
+            
+        self.nfw_temp.set_mask(self.mask_roi_arr[ie])
+        
+    
     def model(self, ebin=10):
         
         if ebin == 'all':
@@ -217,13 +228,15 @@ class EbinPoissonModel:
         else:
             ie = int(ebin)
             
-        mu = jnp.zeros_like(self.counts)
+        mask = self.mask_roi_arr[ie]
+        data = self.counts[ie][~mask]
+        mu = jnp.zeros_like(data)
         
         #===== rigid templates =====
         # all templates should be already normalized
         for k in ['iso', 'psc', 'bub']:
             S_k = numpyro.sample(f'S_{k}', dist.Uniform(1e-3, 5))
-            mu += S_k * jnp.asarray(self.temps[k].at_bin(ie))
+            mu += S_k * jnp.asarray(self.temps[k].at_bin(ie, mask=mask))
             
         #===== hybrid templates =====
         # all templates should be already normalized
@@ -231,21 +244,21 @@ class EbinPoissonModel:
             S_pib = numpyro.sample('S_pib', dist.Uniform(1e-3, 10))
             S_ics = numpyro.sample('S_ics', dist.Uniform(1e-3, 10))
             if self.n_dif_temps == 1:
-                mu += S_pib * self.pib_temps[0].at_bin(ie) + S_ics * self.ics_temps[0].at_bin(ie)
+                mu += S_pib * self.pib_temps[0].at_bin(ie, mask=mask) + S_ics * self.ics_temps[0].at_bin(ie, mask=mask)
             else:
                 theta_pib = numpyro.sample("theta_pib", dist.Dirichlet(jnp.ones((self.n_dif_temps,)) / self.n_dif_temps))
                 theta_ics = numpyro.sample("theta_ics", dist.Dirichlet(jnp.ones((self.n_dif_temps,)) / self.n_dif_temps))
-                pib_temps_at_bin = jnp.asarray([pib_temp.at_bin(ie) for pib_temp in self.pib_temps])
-                ics_temps_at_bin = jnp.asarray([ics_temp.at_bin(ie) for ics_temp in self.ics_temps])
+                pib_temps_at_bin = jnp.asarray([pib_temp.at_bin(ie, mask=mask) for pib_temp in self.pib_temps])
+                ics_temps_at_bin = jnp.asarray([ics_temp.at_bin(ie, mask=mask) for ics_temp in self.ics_temps])
                 mu += S_pib * jnp.dot(theta_pib, pib_temps_at_bin) + S_ics * jnp.dot(theta_ics, ics_temps_at_bin)
             
         if self.n_blg_temps > 0:
             S_blg = numpyro.sample('S_blg', dist.Uniform(1e-3, 10))
             if self.n_blg_temps == 1:
-                mu += S_blg * self.blg_temps[0].at_bin(ie)
+                mu += S_blg * self.blg_temps[0].at_bin(ie, mask=mask)
             else:
                 theta_blg = numpyro.sample("theta_blg", dist.Dirichlet(jnp.ones((self.n_blg_temps,)) / self.n_blg_temps))
-                blg_temps_at_bin = jnp.asarray([blg_temp.at_bin(ie) for blg_temp in self.blg_temps])
+                blg_temps_at_bin = jnp.asarray([blg_temp.at_bin(ie, mask=mask) for blg_temp in self.blg_temps])
                 mu += S_blg * jnp.dot(theta_blg, blg_temps_at_bin)
             
         #===== variable templates =====
@@ -254,26 +267,26 @@ class EbinPoissonModel:
             gamma = numpyro.sample("gamma", dist.Uniform(0.2, 2))
         else:
             gamma = self.nfw_gamma
-        mu += S_nfw * self.nfw_temp.get_NFW2_template(gamma=gamma)
+        mu += S_nfw * self.nfw_temp.get_NFW2_masked_template(gamma=gamma)
         
         if self.disk_option in ['vary', 'fixed']:
             S_dsk = numpyro.sample('S_dsk', dist.Uniform(1e-3, 5))
             if self.disk_option == 'vary':
                 zs = numpyro.sample("zs", dist.Uniform(0.1, 2.5))
                 C  = numpyro.sample("C",  dist.Uniform(0.05, 15.))
-                temp_dsk = self.dsk_temp.get_template(zs=zs, C=C)
+                temp_dsk = self.dsk_temp.get_template(zs=zs, C=C)[~mask]
             else:
-                temp_dsk = self.temps['dsk'].at_bin(ie)
+                temp_dsk = self.temps['dsk'].at_bin(ie, mask=mask)
             mu += S_dsk * temp_dsk
         
         #===== deterministic =====
         numpyro.deterministic('f_blg', S_blg / (S_blg + S_nfw))
             
         #===== data =====
-        mu_roi = mu[~self.mask_roi_arr[ie]]
-        data_roi = self.counts[~self.mask_roi_arr[ie]]
-        with numpyro.plate('data', size=len(mu_roi), dim=-1):
-            return numpyro.factor('log_likelihood', log_like_poisson(mu_roi, data_roi))
+        #mu_roi = mu[~self.mask_roi_arr[ie]]
+        #data_roi = self.counts[ie][~self.mask_roi_arr[ie]]
+        with numpyro.plate('data', size=len(mu), dim=-1):
+            return numpyro.factor('log_likelihood', log_like_poisson(mu, data))
         
     
     #========== SVI ==========
@@ -330,7 +343,7 @@ class EbinPoissonModel:
             Trace_ELBO(num_particles=num_particles),
             **model_static_kwargs,
         )
-        self.svi_results = svi.run(rng_key, n_steps, self.counts[ie])
+        self.svi_results = svi.run(rng_key, n_steps)
         self.svi_model_static_kwargs = model_static_kwargs
         
         return self.svi_results
@@ -346,16 +359,29 @@ class EbinPoissonModel:
         )
         
         if expand_samples:
-            new_samples = {}
-            for k in self.svi_samples.keys():
-                if k in self.samples_expand_keys:
-                    for i in range(self.svi_samples[k].shape[-1]):
-                        new_samples[self.samples_expand_keys[k][i]] = self.svi_samples[k][...,i]
-                else:
-                    new_samples[k] = self.svi_samples[k]
-            self.svi_samples = new_samples
+            # new_samples = {}
+            # for k in self.svi_samples.keys():
+            #     if k in self.samples_expand_keys:
+            #         for i in range(self.svi_samples[k].shape[-1]):
+            #             new_samples[self.samples_expand_keys[k][i]] = self.svi_samples[k][...,i]
+            #     else:
+            #         new_samples[k] = self.svi_samples[k]
+            # self.svi_samples = new_samples
+            self.svi_samples = self.expand_samples(self.svi_samples)
             
         return self.svi_samples
+    
+    def expand_samples(self, samples):
+        new_samples = {}
+        for k in samples.keys():
+            if k in self.samples_expand_keys:
+                for i in range(samples[k].shape[-1]):
+                    new_samples[self.samples_expand_keys[k][i]] = samples[k][...,i]
+            elif k in ['auto_shared_latent']:
+                pass
+            else:
+                new_samples[k] = samples[k]
+        return new_samples
         
     
     #========== NeuTra ==========
@@ -379,7 +405,7 @@ class EbinPoissonModel:
     
     
     #========== PTHMC ==========
-    def run_parallel_tempering_hmc(self, num_samples=5000, step_size_base=5e-2, num_leapfrog_steps=3, num_adaptation_steps=600, rng_key=jax.random.PRNGKey(0)):
+    def run_parallel_tempering_hmc(self, num_samples=5000, step_size_base=5e-2, num_leapfrog_steps=3, num_adaptation_steps=600, rng_key=jax.random.PRNGKey(0), use_neutra=True):
         
         # Geometric temperatures decay
         inverse_temperatures = 0.5 ** jnp.arange(4.)
@@ -399,11 +425,15 @@ class EbinPoissonModel:
 
             return adapted_kernel
         
-        self.get_neutra_model()
+        if use_neutra:
+            self.get_neutra_model()
+            model = self.model_neutra
+        else:
+            model = lambda x: self.model(**self.svi_model_static_kwargs)
         
-        kernel = ReplicaExchangeMC(self.model_neutra, inverse_temperatures=inverse_temperatures, make_kernel_fn=make_kernel_fn)
+        kernel = ReplicaExchangeMC(model, inverse_temperatures=inverse_temperatures, make_kernel_fn=make_kernel_fn)
         self.pt_mcmc = MCMC(kernel, num_warmup=num_adaptation_steps, num_samples=num_samples, num_chains=1, chain_method='vectorized')
-        self.pt_mcmc.run(rng_key, self.counts[self.svi_model_static_kwargs['ebin']])
+        self.pt_mcmc.run(rng_key, None)
         
         return self.pt_mcmc
     
@@ -411,7 +441,7 @@ class EbinPoissonModel:
     #========== MAP ==========
     def fit_MAP(
         self, rng_key=jax.random.PRNGKey(42),
-        lr=0.1, n_steps=10000, num_particles=8
+        lr=0.1, n_steps=10000, num_particles=8,
         **model_static_kwargs,
     ):
         guide = autoguide.AutoDelta(self.model)
@@ -421,7 +451,7 @@ class EbinPoissonModel:
             loss=Trace_ELBO(num_particles=num_particles),
             **model_static_kwargs,
         )
-        svi_results = svi.run(rng_key, n_steps, self.counts[model_static_kwargs['ebin']])
+        svi_results = svi.run(rng_key, n_steps)
         self.MAP_estimates = guide.median(svi_results.params)
         
         return svi_results

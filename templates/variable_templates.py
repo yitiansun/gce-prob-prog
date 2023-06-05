@@ -41,6 +41,21 @@ class NFWTemplate:
 
         self.rsun = rsun
         self.r_s = r_s
+        
+    def set_mask(self, mask):
+        """Set fit mask. Required before calling get_NFW2_masked_template."""
+        if not self.npix == len(mask):
+            raise ValueError('mask nside incorrect.')
+        mask_restrict = np.where(mask == 0)[0]
+        theta_ary, phi_ary = hp.pix2ang(hp.npix2nside(self.npix), mask_restrict)
+        self.masked_b_ary = np.pi / 2.0 - theta_ary
+        self.masked_l_ary = NFWTemplate.mod(phi_ary + np.pi, 2.0 * np.pi) - np.pi
+        
+    @partial(jit, static_argnums=(0,))
+    def get_NFW2_masked_template(self, gamma=1.2):
+        """Return LOS integral of density^2 only on masked indices"""
+        int_rho2 = jnp.trapz(self.rho_NFW(self.rGC(self.s_ary, self.masked_b_ary, self.masked_l_ary, self.rsun), gamma=gamma, r_s=self.r_s) ** 2, self.s_ary, axis=1)
+        return int_rho2 / jnp.nan_to_num(int_rho2).mean()
 
     @partial(jit, static_argnums=(0,))
     def get_NFW2_template(self, gamma=1.2):

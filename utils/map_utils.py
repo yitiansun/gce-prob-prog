@@ -7,7 +7,7 @@ import healpy as hp
 def to_nside(m, nside, mode='interp'):
     """Converts higher nside maps to lower nside, with mode 'sum' or 'interp'."""
     from_nside = hp.npix2nside(m.shape[-1])
-    minterp = hp.pixelfunc.ud_grade(m, self.nside)
+    minterp = hp.pixelfunc.ud_grade(m, nside)
     if mode == 'sum':
         minterp *= (from_nside/nside)**2
     elif mode == 'interp':
