@@ -79,7 +79,7 @@ class EbinTemplate:
 
 class BulgeTemplates:
     """Bulge templates from literature.
-    The "mcdermott*" templates are from McDermott et al. 2022 (https://arxiv.org/abs/2209.00006),
+    The "mcdermott*" templates are from McDermott et al. 2022 (https://arxiv.org/abs/),
     downloaded from https://github.com/samueldmcdermott/gcepy/tree/main/gcepy/inputs/excesses.
     Other templates are downloaded from https://github.com/chrisgordon1/galactic_bulge_templates.
     

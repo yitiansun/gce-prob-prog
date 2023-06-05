@@ -223,6 +223,7 @@ class EbinPoissonModel:
         else:
             ie = int(ebin)
             
+        self.nfw_temp = NFWTemplate(nside=self.nside)
         self.nfw_temp.set_mask(self.mask_roi_arr[ie])
         
     
