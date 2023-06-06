@@ -43,8 +43,6 @@ class EbinPoissonModel:
     ----------
     nside : 512 or lower powers of 2.
         HEALPix NSIDE parameter.
-    ps_cat : str
-        Point source catalog.
     data_class : str
         Data class.
     temp_class : str
@@ -71,7 +69,7 @@ class EbinPoissonModel:
     def __init__(
         self,
         nside = 128,
-        ps_cat = '3fgl',
+        #ps_cat = '3fgl',
         data_class = 'fwhm000-0512-bestpsf-nopsc',
         temp_class = 'ultracleanveto-bestpsf',
         mask_class = 'fwhm000-0512-bestpsf-mask',
@@ -85,7 +83,7 @@ class EbinPoissonModel:
     ):
         
         self.nside = nside
-        self.ps_cat = ps_cat
+        #self.ps_cat = ps_cat
         self.data_class = data_class
         self.temp_class = temp_class
         self.mask_class = mask_class
@@ -365,14 +363,6 @@ class EbinPoissonModel:
         )
         
         if expand_samples:
-            # new_samples = {}
-            # for k in self.svi_samples.keys():
-            #     if k in self.samples_expand_keys:
-            #         for i in range(self.svi_samples[k].shape[-1]):
-            #             new_samples[self.samples_expand_keys[k][i]] = self.svi_samples[k][...,i]
-            #     else:
-            #         new_samples[k] = self.svi_samples[k]
-            # self.svi_samples = new_samples
             self.svi_samples = self.expand_samples(self.svi_samples)
             
         return self.svi_samples
