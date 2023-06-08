@@ -21,11 +21,15 @@ from likelihoods.pll_jax import log_like_poisson
 class GCEPyModel (EbinPoissonModel):
     """gcepy model https://github.com/samueldmcdermott/gcepy/tree/main/gcepy"""
     
-    def __init__(self):
+    def __init__(self, dif_names=['7p', '8t'], gce_names=['bb', 'bbp', 'dm', 'x', 'c19']):
         
         ddir = "../data/external/gcepy/inputs"
         postfix = 'front_only_14_Ebin_20x20window_normal'
         self.n_ebin = 14
+        self.dif_names = dif_names
+        self.gce_names = gce_names
+        self.n_dif = len(dif_names)
+        self.n_gce = len(gce_names)
         
         #========== templates ==========
         self.temps = {
@@ -50,6 +54,10 @@ class GCEPyModel (EbinPoissonModel):
             }
             for ie in range(self.n_ebin)
         ]
+        self.temps['gce_c19'] = jnp.load(f"../data/bulge_templates/Bulge_modulated_Coleman_etal_2019_Normalized.npy")
+        
+        for ie, tme in enumerate(self.temps_masked_ebin):
+            tme.update({'gce_c19' : self.temps['gce_c19'][ie][self.mask[ie]]})
         self.temps_masked_full = {
             key : jnp.concatenate([
                 temp[ie][self.mask[ie]]
@@ -77,7 +85,7 @@ class GCEPyModel (EbinPoissonModel):
         self.samples_expand_keys = {
             'theta_pib' : [f'theta_pib_{n}' for n in ['7p', '8t']],
             'theta_ics' : [f'theta_ics_{n}' for n in ['7p', '8t']],
-            'theta_gce' : [f'theta_gce_{n}' for n in ['bb', 'bbp', 'dm', 'x']],
+            'theta_gce' : [f'theta_gce_{n}' for n in ['bb', 'bbp', 'dm', 'x', 'c19']],
         }
         
         
@@ -115,125 +123,21 @@ class GCEPyModel (EbinPoissonModel):
             S_iso = numpyro.sample('S_iso', dist.LogUniform(1e-2, 1e2))
             S_bub = numpyro.sample('S_bub', dist.LogUniform(1e-2, 1e2))
             
-        S_pib = numpyro.sample('S_pib', dist.LogUniform(1e-2, 1e3))
-        S_ics = numpyro.sample('S_ics', dist.LogUniform(1e-2, 1e3))
+        S_pib = numpyro.sample('S_pib', dist.LogUniform(1e-2, 1e4))
+        S_ics = numpyro.sample('S_ics', dist.LogUniform(1e-2, 1e4))
         S_gce = numpyro.sample('S_gce', dist.LogUniform(1e-2, 1e2))
         
-        theta_pib = numpyro.sample('theta_pib', dist.Dirichlet(jnp.ones((2,)) / 2))
-        theta_ics = numpyro.sample('theta_ics', dist.Dirichlet(jnp.ones((2,)) / 2))
-        theta_gce = numpyro.sample('theta_gce', dist.Dirichlet(jnp.ones((4,)) / 4)) # gce includes 4 bulges and dm
-        
-        #===== calculate mu =====
-        if ebin == 'all':
-            temps = self.temps_masked_full
-            data  = self.counts_masked_full
+        if self.n_dif > 1:
+            theta_pib = numpyro.sample('theta_pib', dist.Dirichlet(jnp.ones((self.n_dif,)) / self.n_dif))
+            theta_ics = numpyro.sample('theta_ics', dist.Dirichlet(jnp.ones((self.n_dif,)) / self.n_dif))
         else:
-            temps = self.temps_masked_ebin[ebin]
-            data  = self.counts_masked_ebin[ebin]
-        mu =  (temps['pib_7p'] * theta_pib[0] + temps['pib_8t'] * theta_pib[1]) * S_pib
-        mu += (temps['ics_7p'] * theta_ics[0] + temps['ics_8t'] * theta_ics[1]) * S_ics
-        mu +=  temps['bub'] * S_bub
-        mu +=  temps['iso'] * S_iso
-        mu += (temps['gce_bb'] * theta_gce[0] + temps['gce_bbp'] * theta_gce[1] \
-              +temps['gce_dm'] * theta_gce[2] + temps['gce_x'] * theta_gce[3]) * S_gce
-        
-        #===== likelihood =====
-        with numpyro.plate('data', size=mu.shape[0], dim=-1):
+            theta_pib = jnp.array([1.])
+            theta_ics = jnp.array([1.])
             
-            ll = log_like_poisson(mu, data)
-            if error_mode == 'll':
-                npix = mu.shape[0]
-                ll += jnp.sum( ((S_iso - 1.)/self.temp_errors['iso']) ** 2 ) / npix
-                ll += jnp.sum( ((S_bub - 1.)/self.temp_errors['bub']) ** 2 ) / npix
-            return numpyro.factor('log_likelihood', ll)
-        
-    #==============================
-#     def fit_SVI(
-#         self, rng_key=jax.random.PRNGKey(42),
-#         num_flows=5, hidden_dims=[256, 256],
-#         n_steps=7500, lr=5e-5, num_particles=8,
-#         **model_static_kwargs,
-#     ):
-#         self.guide = autoguide.AutoIAFNormal(
-#             self.model,
-#             num_flows=num_flows,
-#             hidden_dims=hidden_dims,
-#             nonlinearity=stax.Tanh
-#         )
-#         optimizer = optim.optax_to_numpyro(
-#             optax.chain(
-#                 optax.clip(1.),
-#                 optax.adamw(lr),
-#             )
-#         )
-#         svi = SVI(
-#             self.model, self.guide, optimizer,
-#             Trace_ELBO(num_particles=num_particles),
-#             **model_static_kwargs,
-#         )
-#         self.svi_results = svi.run(rng_key, n_steps)
-        
-#         return self.svi_results
-
-
-class GCEPyModelSimple (GCEPyModel):
-    """Singular template (original) version of
-    gcepy model https://github.com/samueldmcdermott/gcepy/tree/main/gcepy
-    """
-    
-    def __init__(self):
-        super().__init__()
-        
-        self.temps['gce_c19'] = jnp.load(f"../data/bulge_templates/Bulge_modulated_Coleman_etal_2019_Normalized.npy")
-        
-        for ie, tme in enumerate(self.temps_masked_ebin):
-            tme.update({'gce_c19' : self.temps['gce_c19'][ie][self.mask[ie]]})
-            
-        self.temps_masked_full['gce_c19'] = jnp.concatenate([
-            self.temps['gce_c19'][ie][self.mask[ie]]
-            for ie in range(self.n_ebin)
-        ])
-        self.samples_expand_keys = None
-        self.samples_expand_keys = {
-            'theta_pib' : [f'theta_pib_{n}' for n in ['7p', '8t']],
-            'theta_ics' : [f'theta_ics_{n}' for n in ['7p', '8t']],
-            'theta_gce' : [f'theta_gce_{n}' for n in ['dm', 'bb', 'bbp', 'x']],
-        }
-        print('fixed2')
-        
-        
-    def model(self, ebin='all',
-              #gce_option='dm',
-              dif_option='7p',
-              error_mode='ll',
-              log_S=True):
-        """
-        Parameters
-        ----------
-        ebin : 'all' or int
-        gce_option : {'dm', 'bb', 'bbp', 'x'}
-        #dif_option : {'7p', '8t'}
-        error_mode : {'none', 'll'}
-        log_S : bool
-        """
-        
-        #===== parameters =====
-        if not log_S:
-            S_iso = numpyro.sample('S_iso', dist.LogUniform(1e-2, 1e2))
-            S_bub = numpyro.sample('S_bub', dist.LogUniform(1e-2, 1e2))
-            S_pib = numpyro.sample('S_pib', dist.LogUniform(1e-2, 1e3))
-            S_ics = numpyro.sample('S_ics', dist.LogUniform(1e-2, 1e3))
-            S_gce = numpyro.sample('S_gce', dist.LogUniform(1e-2, 1e2))
+        if self.n_gce > 1:
+            theta_gce = numpyro.sample('theta_gce', dist.Dirichlet(jnp.ones((self.n_gce,)) / self.n_gce)) # gce includes 4 bulges and dm
         else:
-            S_iso = 10**numpyro.sample('log10S_iso', dist.Uniform(-2, 2))
-            S_bub = 10**numpyro.sample('log10S_bub', dist.Uniform(-2, 2))
-            S_pib = 10**numpyro.sample('log10S_pib', dist.Uniform(-2, 4))
-            S_ics = 10**numpyro.sample('log10S_ics', dist.Uniform(-2, 4))
-            S_gce = 10**numpyro.sample('log10S_gce', dist.Uniform(-2, 2))
-        #f_blg = numpyro.sample('f_blg', dist.Uniform(0, 1))
-        #theta_pib = numpyro.sample('theta_pib', dist.Dirichlet(jnp.ones((2,)) / 2))
-        #theta_ics = numpyro.sample('theta_ics', dist.Dirichlet(jnp.ones((2,)) / 2))
-        theta_gce = numpyro.sample('theta_gce', dist.Dirichlet(jnp.ones((4,)) / 4)) # gce includes 4 bulges and dm
+            theta_gce = jnp.array([1.])
         
         #===== calculate mu =====
         if ebin == 'all':
@@ -243,15 +147,17 @@ class GCEPyModelSimple (GCEPyModel):
             temps = self.temps_masked_ebin[ebin]
             data  = self.counts_masked_ebin[ebin]
             
-        mu  = temps['bub'] * S_bub
+        mu =  temps['bub'] * S_bub
         mu += temps['iso'] * S_iso
-        mu += temps['pib_'+dif_option] * S_pib
-        mu += temps['ics_'+dif_option] * S_ics
-        #mu += temps['gce_dm'] * S_gce * (1 - f_blg) #+ temps['gce_c19'] * S_gce * f_blg
-        mu += (temps['gce_dm'] * theta_gce[0] + \
-               temps['gce_bb'] * theta_gce[1] + \
-               temps['gce_bbp'] * theta_gce[2] + \
-               temps['gce_x'] * theta_gce[3]) * S_gce
+        
+        for i, dif_name in enumerate(self.dif_names):
+            mu_pib = temps['pib_' + dif_name] * theta_pib[i]
+            mu_ics = temps['ics_' + dif_name] * theta_ics[i]
+        mu += mu_pib * S_pib + mu_ics * S_ics
+            
+        for i, gce_name in enumerate(self.gce_names):
+            mu_gce = temps['gce_' + gce_name] * theta_gce[i]
+        mu += mu_gce * S_gce
         
         #===== likelihood =====
         with numpyro.plate('data', size=mu.shape[0], dim=-1):
