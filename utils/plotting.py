@@ -23,11 +23,13 @@ def multi_corner(
     fig = None
     for ie, (samples_name, samples) in enumerate(samples_dict.items()):
         color = mpl.colors.to_hex(colors_dict[samples_name])
-        figure = corner.corner(
+        fig = corner.corner(
             samples,
             bins_1d_arr=bins_1d_arr,
+            range=range_arr,
             var_names=plot_var_names,
             show_titles=True,
+            title_fmt=None,
             title_kwargs={"fontsize": 12},
             levels=[0.68, 0.95],
             color=color,
@@ -37,11 +39,12 @@ def multi_corner(
             plot_datapoints=False,
             fig=fig,
         )
-    fig.legend(
-        [mpl.lines.Line2D([0], [0], color=c) for k, c in colors_dict.items()],
-        [names_dict[k] for k, c in colors_dict.items()],
-        loc='upper right'
-    )
+    if labels_dict is not None:
+        fig.legend(
+            [mpl.lines.Line2D([0], [0], color=c) for k, c in colors_dict.items()],
+            [labels_dict[k] for k, c in colors_dict.items()],
+            loc='upper right'
+        )
 
     if MAP is not None:
         ndim = len(plot_var_names)
@@ -57,5 +60,5 @@ def multi_corner(
                                  MAP[plot_var_names[ri]],
                                  '*', color=MAP_color, ms=10)
                 
-    if save_fig is not None:
-        plt.savefig(save_fig)
+    if save_fn is not None:
+        plt.savefig(save_fn)
