@@ -21,7 +21,10 @@ from likelihoods.pll_jax import log_like_poisson
 class GCEPyModel (EbinPoissonModel):
     """gcepy model https://github.com/samueldmcdermott/gcepy/tree/main/gcepy"""
     
-    def __init__(self, dif_names=['7p', '8t'], gce_names=['bb', 'bbp', 'dm', 'x', 'c19']):
+    def __init__(self,
+                 dif_names=['7p', '8t'],
+                 gce_names=['bb', 'bbp', 'dm', 'x', 'c19'],
+                 include_nuclear_bulges=False):
         
         ddir = "../data/external/gcepy/inputs"
         postfix = 'front_only_14_Ebin_20x20window_normal'
@@ -30,6 +33,7 @@ class GCEPyModel (EbinPoissonModel):
         self.gce_names = gce_names
         self.n_dif = len(dif_names)
         self.n_gce = len(gce_names)
+        self.include_nuclear_bulges = include_nuclear_bulges
         
         #========== templates ==========
         self.temps = {
@@ -45,7 +49,9 @@ class GCEPyModel (EbinPoissonModel):
             'gce_bbp': jnp.load(f"{ddir}/excesses/bbp_{postfix}.npy"),
             'gce_dm' : jnp.load(f"{ddir}/excesses/dm_{postfix}.npy"),
             'gce_x'  : jnp.load(f"{ddir}/excesses/x_{postfix}.npy"),
-            'gce_c19' : jnp.load(f"../data/bulge_templates/colman_bulge_{postfix}.npy")
+            'gce_c19': jnp.load(f"../data/bulge_templates/colman_bulge_{postfix}.npy"),
+            'nsd'    : jnp.load(f"../data/bulge_templates/nuclear_stellar_disk_dm_62_{postfix}.npy"),
+            'nsc'    : jnp.load(f"../data/bulge_templates/nuclear_stellar_cluster_dm_63_{postfix}.npy"),
         }
         self.mask = jnp.array(jnp.load(f"{ddir}/utils/mask_4FGL-DR2_14_Ebin_20x20window_normal.npy"), dtype=bool)
         self.temps_masked_ebin = [
@@ -123,6 +129,9 @@ class GCEPyModel (EbinPoissonModel):
         S_pib = numpyro.sample('S_pib', dist.LogUniform(1e-2, 1e4))
         S_ics = numpyro.sample('S_ics', dist.LogUniform(1e-2, 1e4))
         S_gce = numpyro.sample('S_gce', dist.LogUniform(1e-2, 1e2))
+        if self.include_nuclear_bulges:
+            S_nsd = numpyro.sample('S_nsd', dist.LogUniform(1e-2, 1e2))
+            S_nsc = numpyro.sample('S_nsc', dist.LogUniform(1e-2, 1e2))
         
         if self.n_dif > 1:
             theta_pib = numpyro.sample('theta_pib', dist.Dirichlet(jnp.ones((self.n_dif,)) / self.n_dif))
@@ -155,6 +164,10 @@ class GCEPyModel (EbinPoissonModel):
         for i, gce_name in enumerate(self.gce_names):
             mu_gce = temps['gce_' + gce_name] * theta_gce[i]
         mu += mu_gce * S_gce
+        
+        if self.include_nuclear_bulges:
+            mu += temps['nsd'] * S_nsd
+            mu += temps['nsc'] * S_nsc
         
         #===== likelihood =====
         with numpyro.plate('data', size=mu.shape[0], dim=-1):
