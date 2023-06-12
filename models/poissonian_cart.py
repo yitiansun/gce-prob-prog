@@ -45,6 +45,7 @@ class GCEPyModel (EbinPoissonModel):
             'gce_bbp': jnp.load(f"{ddir}/excesses/bbp_{postfix}.npy"),
             'gce_dm' : jnp.load(f"{ddir}/excesses/dm_{postfix}.npy"),
             'gce_x'  : jnp.load(f"{ddir}/excesses/x_{postfix}.npy"),
+            'gce_c19' : jnp.load(f"../data/bulge_templates/colman_bulge_{postfix}.npy")
         }
         self.mask = jnp.array(jnp.load(f"{ddir}/utils/mask_4FGL-DR2_14_Ebin_20x20window_normal.npy"), dtype=bool)
         self.temps_masked_ebin = [
@@ -54,10 +55,6 @@ class GCEPyModel (EbinPoissonModel):
             }
             for ie in range(self.n_ebin)
         ]
-        self.temps['gce_c19'] = jnp.load(f"../data/bulge_templates/Bulge_modulated_Coleman_etal_2019_Normalized.npy")
-        
-        for ie, tme in enumerate(self.temps_masked_ebin):
-            tme.update({'gce_c19' : self.temps['gce_c19'][ie][self.mask[ie]]})
         self.temps_masked_full = {
             key : jnp.concatenate([
                 temp[ie][self.mask[ie]]
