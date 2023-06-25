@@ -2,8 +2,8 @@
 **/.DS_Store
 .tmp.driveupload/
 .tmp.drivedownload/
-output/posteriors/compare_gcepy/
-output/posteriors/ebin/
+outputs/posteriors/compare_gcepy/
+outputs/posteriors/ebin/
 data/fermi_data_573w/ebin_512/
 #==================================
 
