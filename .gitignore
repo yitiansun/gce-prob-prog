@@ -5,6 +5,8 @@
 outputs/posteriors/compare_gcepy/
 outputs/posteriors/ebin/
 data/fermi_data_573w/ebin_512/
+notebooks/lightning_logs/
+outputs/checkpoints/
 #==================================
 
 # Byte-compiled / optimized / DLL files
