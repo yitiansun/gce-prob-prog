@@ -389,13 +389,21 @@ class EbinPoissonModel:
         
     
     #========== NUTS ==========
-    def run_nuts(self, num_chains=4, num_warmup=500, num_samples=5000, step_size=0.1, rng_key=jax.random.PRNGKey(0)):
+    def run_nuts(self, num_chains=4, num_warmup=500, num_samples=5000, step_size=0.1,
+                 rng_key=jax.random.PRNGKey(0), use_neutra=True, **model_static_kwargs):
         
-        self.get_neutra_model()
+        if use_neutra:
+            self.get_neutra_model()
+            model = self.model_neutra
+        else:
+            model = self.model
         
-        kernel = NUTS(self.model_neutra, max_tree_depth=4, dense_mass=False, step_size=step_size)
+        kernel = NUTS(model, max_tree_depth=4, dense_mass=False, step_size=step_size)
         self.nuts_mcmc = MCMC(kernel, num_warmup=num_warmup, num_samples=num_samples, num_chains=num_chains, chain_method='vectorized')
-        self.nuts_mcmc.run(rng_key, data=self.counts[self.svi_model_static_kwargs['ebin']])
+        if use_neutra:
+            self.nuts_mcmc.run(rng_key, None)
+        else:
+            self.nuts_mcmc.run(rng_key, **model_static_kwargs)
         
         return self.nuts_mcmc
     

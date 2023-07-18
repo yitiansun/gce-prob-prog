@@ -24,6 +24,7 @@ class GCEPyModel (EbinPoissonModel):
     def __init__(self,
                  dif_names=['7p', '8t'],
                  gce_names=['bb', 'bbp', 'dm', 'x', 'c19'],
+                 normalize_gce=False,
                  include_nuclear_bulges=False):
         
         ddir = "../data/external/gcepy/inputs"
@@ -33,6 +34,7 @@ class GCEPyModel (EbinPoissonModel):
         self.gce_names = gce_names
         self.n_dif = len(dif_names)
         self.n_gce = len(gce_names)
+        self.normalize_gce = normalize_gce
         self.include_nuclear_bulges = include_nuclear_bulges
         
         #========== templates ==========
@@ -54,6 +56,10 @@ class GCEPyModel (EbinPoissonModel):
             'nsc'    : jnp.load(f"../data/bulge_templates/nuclear_stellar_cluster_dm_63_{postfix}.npy"),
         }
         self.mask = jnp.array(jnp.load(f"{ddir}/utils/mask_4FGL-DR2_14_Ebin_20x20window_normal.npy"), dtype=bool)
+        if self.normalize_gce:
+            for k, temp in self.temps.items():
+                if k.startswith('gce'):
+                    self.temps[k] = temp / jnp.mean(temp, axis=(1, 2), keepdims=True)
         self.temps_masked_ebin = [
             {
                 key : temp[ie][self.mask[ie]]
@@ -88,7 +94,7 @@ class GCEPyModel (EbinPoissonModel):
         self.samples_expand_keys = {
             'theta_pib' : [f'theta_pib_{n}' for n in ['7p', '8t']],
             'theta_ics' : [f'theta_ics_{n}' for n in ['7p', '8t']],
-            'theta_gce' : [f'theta_gce_{n}' for n in ['bb', 'bbp', 'dm', 'x', 'c19']],
+            'theta_gce' : [f'theta_gce_{n}' for n in self.gce_names],
         }
         
         

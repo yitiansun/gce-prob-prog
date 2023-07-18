@@ -9,7 +9,7 @@ import corner
 def multi_corner(
     samples_dict, plot_var_names, MAP=None,
     colors_dict=None, labels_dict=None,
-    n_bins_1d=30, save_fn=None
+    n_bins_1d=30, save_fn=None, **kwargs
 ):
 
     bins_1d_arr = []
@@ -38,6 +38,7 @@ def multi_corner(
             plot_density=False,
             plot_datapoints=False,
             fig=fig,
+            **kwargs
         )
     if labels_dict is not None:
         fig.legend(
