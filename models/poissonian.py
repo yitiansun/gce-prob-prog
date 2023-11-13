@@ -339,7 +339,7 @@ class EbinPoissonModel:
         optimizer = optim.optax_to_numpyro(
             optax.chain(
                 optax.clip(1.),
-                optax.adamw(lr),
+                optax.adam(lr),
             )
         )
         svi = SVI(

@@ -1,14 +1,14 @@
 figure.figsize : 6, 4
 text.usetex : True
 
-font.size : 18
+font.size : 12
 font.family : serif
 font.serif  : cm
 
-axes.titlesize : 18
-axes.labelsize : 14
-xtick.labelsize : 14
-ytick.labelsize : 14
+axes.titlesize : 12
+axes.labelsize : 12
+xtick.labelsize : 12
+ytick.labelsize : 12
 
 figure.dpi : 120
 
