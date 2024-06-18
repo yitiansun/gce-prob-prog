@@ -8,6 +8,7 @@ import healpy as hp
 
 import jax.numpy as jnp
 from jax.scipy.special import gammaln
+from jax.scipy.integrate import trapezoid as trapz
 from jax import vmap, jit
 from functools import partial
 
@@ -54,7 +55,7 @@ class NFWTemplate:
     @partial(jit, static_argnums=(0,))
     def get_NFW2_masked_template(self, gamma=1.2):
         """Return LOS integral of density^2 only on masked indices"""
-        int_rho2 = jnp.trapz(self.rho_NFW(self.rGC(self.s_ary, self.masked_b_ary, self.masked_l_ary, self.rsun), gamma=gamma, r_s=self.r_s) ** 2, self.s_ary, axis=1)
+        int_rho2 = trapz(self.rho_NFW(self.rGC(self.s_ary, self.masked_b_ary, self.masked_l_ary, self.rsun), gamma=gamma, r_s=self.r_s) ** 2, self.s_ary, axis=1)
         return int_rho2 / jnp.nan_to_num(int_rho2).mean()
 
     @partial(jit, static_argnums=(0,))
@@ -62,7 +63,7 @@ class NFWTemplate:
         """Return LOS integral of density^2"""
 
         # LOS integral of density^2
-        int_rho2_temp = jnp.trapz(self.rho_NFW(self.rGC(self.s_ary, self.b_ary, self.l_ary, self.rsun), gamma=gamma, r_s=self.r_s) ** 2, self.s_ary, axis=1)
+        int_rho2_temp = trapz(self.rho_NFW(self.rGC(self.s_ary, self.b_ary, self.l_ary, self.rsun), gamma=gamma, r_s=self.r_s) ** 2, self.s_ary, axis=1)
 
         int_rho2 = jnp.zeros(self.npix)
         int_rho2 = int_rho2.at[self.mask_idx].set(int_rho2_temp)
@@ -161,4 +162,4 @@ class LorimerDiskTemplate:
 
     def L_integ_Lorimer(self, b, l, zs=0.63, B=0.0, C=5.94, rsun=8.224):
         """Line-of-sight integral (discrete sum) for Lorimer disk profile"""
-        return jnp.trapz(self.rho_V_Lorimer_lonlat(self.s_ary, b, l, zs, B, C, rsun), self.s_ary)
+        return trapz(self.rho_V_Lorimer_lonlat(self.s_ary, b, l, zs, B, C, rsun), self.s_ary)

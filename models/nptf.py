@@ -6,6 +6,7 @@ import healpy as hp
 import jax
 import jax.numpy as jnp
 from jax.example_libraries import stax
+from jax.scipy.integrate import trapezoid as trapz
 
 import numpyro
 import numpyro.distributions as dist
@@ -239,7 +240,7 @@ class NPModel:
             s_ary = jnp.logspace(0.0, 2, 100)
             dnds_ary = dnds(s_ary, theta_tmp)
 
-            A = Sps / jnp.mean(npt_compressed[ips][~self.normalization_mask] * jnp.trapz(s_ary * dnds_ary, s_ary))
+            A = Sps / jnp.mean(npt_compressed[ips][~self.normalization_mask] * trapz(s_ary * dnds_ary, s_ary))
 
             theta.append([A, n1, n2, n3, sb1, lambda_s * sb1])
 
@@ -269,6 +270,14 @@ class NPModel:
         theta = theta.at[:, :, -2].set(theta[:, :, -2] * exposure_multiplier[:, None])
 
         with numpyro.plate("data", size=len(mu[~self.mask_roi]), dim=-1):
+            print('theta', theta.shape)
+            print('mu_batch', mu_batch.shape)
+            print('npt_compressed_batch', npt_compressed_batch.shape)
+            print('data_batch', data_batch.shape)
+            print('f_ary', self.f_ary.shape)
+            print('df_rho_div_f_ary', self.df_rho_div_f_ary.shape)
+            print('expreg_indices', expreg_indices)
+            print('len(expreg_indices[0])', len(expreg_indices[0]))
             log_like_exp = log_like_np_exp_vmapped(theta, mu_batch, npt_compressed_batch, data_batch, self.f_ary, self.df_rho_div_f_ary, self.k_max, len(expreg_indices[0]))
 
             # Concatenate exposure regions

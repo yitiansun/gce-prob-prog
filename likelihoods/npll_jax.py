@@ -3,12 +3,12 @@ import sys
 sys.path.append("./")
 
 import jax
+jax.config.update("jax_enable_x64", True)
 from jax import jit, vmap
 import jax.numpy as jnp
+from jax.scipy.integrate import trapezoid as trapz
 import numpy as np
-from jax.config import config
 
-config.update("jax_enable_x64", True)
 
 from functools import partial
 
@@ -67,12 +67,12 @@ def return_x_m(f_ary, df_rho_div_f_ary, npt_compressed, data, s_ary, dnds_ary, k
     m_ary = jnp.arange(k_max + 1, dtype=jnp.float64)
     gamma_ary = jnp.exp(jax.lax.lgamma(m_ary + 1))
 
-    x_m_ary = df_rho_div_f_ary[:, None] * f_ary[:, None] * jnp.trapz(((dnds_ary * jnp.exp(-jnp.outer(f_ary, s_ary)))[:, :, None] * jax.lax.pow(jnp.outer(f_ary, s_ary)[:, :, None], m_ary[None, None, :]) / gamma_ary), s_ary, axis=1)
+    x_m_ary = df_rho_div_f_ary[:, None] * f_ary[:, None] * trapz(((dnds_ary * jnp.exp(-jnp.outer(f_ary, s_ary)))[:, :, None] * jax.lax.pow(jnp.outer(f_ary, s_ary)[:, :, None], m_ary[None, None, :]) / gamma_ary), s_ary, axis=1)
     x_m_ary = jnp.sum(x_m_ary, axis=0)
 
     x_m_ary = jnp.outer(npt_compressed, x_m_ary)
 
-    x_m_sum_ary = jnp.sum((df_rho_div_f_ary * f_ary)[:, None] * jnp.trapz(dnds_ary, s_ary), axis=0)
+    x_m_sum_ary = jnp.sum((df_rho_div_f_ary * f_ary)[:, None] * trapz(dnds_ary, s_ary), axis=0)
     x_m_sum_ary = jnp.sum(x_m_sum_ary, axis=0)
 
     x_m_sum_ary = npt_compressed * x_m_sum_ary - x_m_ary[:, 0]

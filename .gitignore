@@ -5,6 +5,7 @@
 outputs/posteriors/compare_gcepy/
 outputs/posteriors/ebin/
 data/fermi_data_573w/ebin_512/
+data/tmp/
 notebooks/lightning_logs/
 outputs/checkpoints/
 outputs/validation
